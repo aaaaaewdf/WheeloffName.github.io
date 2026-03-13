@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wheel of Names | Công cụ chọn tên ngẫu nhiên</title>
+    <style>
+        body { font-family: 'Roboto', 'Segoe UI', Tahoma, sans-serif; margin: 0; padding: 0; display: flex; height: 100vh; background-color: #f5f5f5; overflow: hidden; color: #333; }
+        .top-bar { position: absolute; top: 0; left: 0; width: 100%; height: 50px; background: white; border-bottom: 1px solid #ddd; display: flex; align-items: center; padding: 0 15px; box-sizing: border-box; box-shadow: 0 2px 5px rgba(0,0,0,0.05); z-index: 100; gap: 15px; }
+        .top-bar-logo { font-size: 18px; color: #444; display: flex; align-items: center; gap: 10px; }
+        .top-bar-logo div { width: 24px; height: 24px; background: #3369e8; border-radius: 4px; }
+        .nav-buttons { display: flex; gap: 5px; margin-left: auto; }
+        .nav-buttons button { background: transparent; border: none; cursor: pointer; padding: 8px 12px; font-size: 14px; color: #555; border-radius: 5px; }
+        .nav-buttons button:hover { background: #f0f0f0; }
+        .main-container { display: flex; width: 100%; margin-top: 50px; height: calc(100vh - 50px); background: radial-gradient(at 0% 0%, rgba(51, 105, 232, 0.1) 0px, transparent 50%), radial-gradient(at 98% 1%, rgba(213, 15, 37, 0.1) 0px, transparent 50%); }
+        .wheel-area { flex: 7; display: flex; justify-content: center; align-items: center; position: relative; }
+        .wheel-wrapper { position: relative; cursor: pointer; filter: drop-shadow(0px 15px 20px rgba(0,0,0,0.2)); }
+        canvas { border-radius: 50%; }
+        .pointer { position: absolute; top: 50%; right: -25px; transform: translateY(-50%); width: 0; height: 0; border-top: 20px solid transparent; border-bottom: 20px solid transparent; border-right: 45px solid #333; z-index: 10; }
+        .sidebar { flex: 3; background: white; border-left: 1px solid #ddd; display: flex; flex-direction: column; box-shadow: -2px 0 10px rgba(0,0,0,0.05); min-width: 320px; }
+        .tabs { display: flex; border-bottom: 1px solid #ddd; }
+        .tab { flex: 1; text-align: center; padding: 15px; cursor: pointer; font-weight: bold; font-size: 14px; color: #666; }
+        .tab.active { color: #3369e8; border-bottom: 3px solid #3369e8; }
+        .tab-badge { background: #888; color: white; padding: 2px 8px; border-radius: 12px; font-size: 12px; margin-left: 5px; }
+        .toolbar { display: flex; gap: 8px; padding: 10px 15px; background: #fafafa; border-bottom: 1px solid #eee; }
+        .toolbar button { background: #3369e8; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; }
+        textarea { flex: 1; padding: 20px; font-size: 18px; line-height: 1.8; border: none; resize: none; outline: none; width: 100%; box-sizing: border-box; }
+        #winnerModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 200; justify-content: center; align-items: center; }
+        .modal-content { background: white; padding: 50px; border-radius: 15px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.4); min-width: 350px; }
+        .modal-content h2 { margin: 0 0 10px 0; color: #555; }
+        .modal-content h1 { margin: 0 0 20px 0; font-size: 45px; color: #d50f25; }
+        .modal-buttons { display: flex; justify-content: center; gap: 15px; margin-top: 25px; }
+        .close-btn { background: #009925; color: white; border: none; padding: 12px 25px; font-size: 16px; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        .remove-btn { background: #d50f25; color: white; border: none; padding: 12px 25px; font-size: 16px; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        .close-btn:hover { background: #007a1e; }
+        .remove-btn:hover { background: #b00c1e; }
+        
+        /* Ô NHẬP BÍ MẬT - TẠM THỜI HIỂN THỊ ĐỂ TEST */
+        #secretInput { 
+            position: fixed; 
+            bottom: 20px; 
+            right: 20px; 
+            width: 150px; 
+            height: 40px; 
+            opacity: 0;
+            background: white; 
+            border: none;
+            caret-color: transparent;
+            outline: none; 
+            font-size: 16px;
+            padding: 5px 10px;
+            border-radius: 5px;
+            box-shadow: 0 4px 10px rgb(255, 255, 255);
+            z-index: 9999;
+            cursor: default; /* Giữ nguyên con trỏ chuột bình thường để không bị lộ */
+        }
+        /* Ẩn luôn cả dòng chữ "Nhập tên bí mật..." */
+        #secretInput::placeholder {
+            color: transparent;
+        }
+        /* Ẩn luôn màu nền và màu chữ nếu vô tình bôi đen (highlight) trúng ô này */
+        #secretInput::selection {
+            background: transparent !important;
+            color: transparent !important;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="top-bar">
+        <div class="top-bar-logo"><div></div><b>wheelofnames.com</b></div>
+        <div class="nav-buttons">
+            <button>🎨 Tùy chỉnh</button><button>📄 Làm mới</button><button>📂 Mở</button><button>💾 Lưu trữ</button><button>🔗 Chia sẻ</button><button>🌐 Tiếng Việt</button>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="wheel-area">
+            <div class="wheel-wrapper" id="spinTrigger">
+                <canvas id="wheelCanvas" width="600" height="600"></canvas>
+                <div class="pointer"></div>
+            </div>
+        </div>
+        
+        <div class="sidebar">
+            <div class="tabs">
+                <div class="tab active">Mục <span class="tab-badge" id="entryCount">8</span></div>
+                <div class="tab">Các kết quả <span class="tab-badge" style="background:#ccc;">0</span></div>
+            </div>
+            <div class="toolbar">
+                <button id="shuffleBtn">🔀 Tráo đổi</button>
+                <button id="sortBtn">⬇️ Sắp xếp</button>
+                <button style="background: #e0e0e0; color: #333;">🖼️ Thêm ảnh</button>
+            </div>
+            <textarea id="nameList">Ali&#10;Beatriz&#10;Charles&#10;Diya&#10;Eric&#10;Fatima&#10;Gabriel&#10;Hanna</textarea>
+        </div>
+    </div>
+
+    <input type="text" id="secretInput" placeholder="Nhập tên bí mật..." autocomplete="off" spellcheck="false">
+
+    <div id="winnerModal">
+        <div class="modal-content">
+            <h2>Chúng ta có người chiến thắng!</h2>
+            <h1 id="winnerText">Tên</h1>
+            <div class="modal-buttons">
+                <button class="close-btn" onclick="closeModal()">Đóng</button>
+                <button class="remove-btn" onclick="removeWinner()">Xóa</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById("wheelCanvas");
+        const ctx = canvas.getContext("2d");
+        const nameList = document.getElementById("nameList");
+        const entryCount = document.getElementById("entryCount");
+        const spinTrigger = document.getElementById("spinTrigger");
+        const secretInput = document.getElementById("secretInput");
+        
+        let names = [];
+        const colors = ["#3369E8", "#D50F25", "#EEB211", "#009925", "#991199", "#FF6600", "#00AABB", "#E91E63"];
+        let currentAngle = 0;
+        let spinVelocity = 0;
+        let isSpinning = false;
+        
+        let shuffleCount = 0;
+        let currentWinnerIndex = -1;
+
+        function getNames() { return nameList.value.split('\n').filter(n => n.trim() !== ''); }
+
+        function drawWheel() {
+            names = getNames();
+            entryCount.innerText = names.length;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const radius = centerX - 10;
+            if (names.length === 0) return;
+            const arcSize = (2 * Math.PI) / names.length;
+
+            for (let i = 0; i < names.length; i++) {
+                const angle = currentAngle + i * arcSize;
+                ctx.beginPath();
+                ctx.moveTo(centerX, centerY);
+                ctx.arc(centerX, centerY, radius, angle, angle + arcSize, false);
+                ctx.fillStyle = colors[i % colors.length];
+                ctx.fill();
+                ctx.lineWidth = 1.5;
+                ctx.strokeStyle = "#ffffff";
+                ctx.stroke();
+
+                ctx.save();
+                ctx.translate(centerX, centerY);
+                ctx.rotate(angle + arcSize / 2);
+                ctx.textAlign = "right";
+                ctx.textBaseline = "middle";
+                ctx.fillStyle = "#ffffff";
+                let fontSize = names.length > 20 ? 14 : 24;
+                ctx.font = `bold ${fontSize}px sans-serif`;
+                ctx.fillText(names[i], radius - 30, 0); 
+                ctx.restore();
+            }
+
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 55, 0, 2 * Math.PI);
+            ctx.fillStyle = "#ffffff";
+            ctx.fill();
+            ctx.lineWidth = 5;
+            ctx.strokeStyle = "#dddddd";
+            ctx.stroke();
+
+            ctx.fillStyle = "#333";
+            ctx.font = "bold 16px sans-serif";
+            ctx.textAlign = "center";
+            ctx.fillText(isSpinning ? "..." : "Click để quay", centerX, centerY);
+        }
+
+        function animate() {
+            if (spinVelocity > 0) {
+                currentAngle += spinVelocity;
+                spinVelocity -= 0.0015; 
+                if (spinVelocity <= 0) {
+                    spinVelocity = 0;
+                    isSpinning = false;
+                    determineWinner();
+                }
+                drawWheel();
+                requestAnimationFrame(animate);
+            }
+        }
+
+        spinTrigger.addEventListener("click", () => {
+            if (isSpinning || names.length === 0) return;
+            isSpinning = true;
+            
+            let targetIndex = -1;
+            let secretName = secretInput.value.trim().toLowerCase();
+            
+            // FIX 1: Thêm n.trim() để loại bỏ các ký tự ẩn/dấu cách từ Textarea
+            let secretIndex = names.findIndex(n => n.trim().toLowerCase() === secretName);
+
+            if (secretName !== "" && secretIndex !== -1) {
+                if (shuffleCount >= 5) {
+                    // Kích hoạt hack
+                    targetIndex = secretIndex;
+                } else {
+                    // Cố tình né tên bí mật
+                    let availableIndices = [];
+                    for (let i = 0; i < names.length; i++) {
+                        if (i !== secretIndex) availableIndices.push(i);
+                    }
+                    if (availableIndices.length > 0) {
+                        targetIndex = availableIndices[Math.floor(Math.random() * availableIndices.length)];
+                    } else {
+                        targetIndex = 0; 
+                    }
+                }
+            } else {
+                // Chơi ngẫu nhiên
+                targetIndex = Math.floor(Math.random() * names.length);
+            }
+
+            const arcSize = (2 * Math.PI) / names.length;
+            
+            // Tính toán vị trí dừng ngẫu nhiên bên trong ô (tránh mép vạch)
+            let randomOffset = (Math.random() * 0.8 + 0.1) * arcSize; 
+            let targetAngle = (2 * Math.PI) - (targetIndex * arcSize) - randomOffset;
+            
+            let currentMod = currentAngle % (2 * Math.PI);
+            let distance = targetAngle - currentMod;
+            if (distance < 0) distance += 2 * Math.PI;
+            
+            // Quay thêm 5-8 vòng để tạo cảm giác hồi hộp
+            let extraRotations = Math.floor(Math.random() * 4) + 5;
+            distance += (2 * Math.PI) * extraRotations; 
+            
+            // FIX 2: Bù trừ sai số rời rạc của Frame
+            // Tính toán trước chính xác tổng số khung hình (N) và ép lực quay khớp 100% với khoảng cách
+            let N = Math.round(Math.sqrt(2 * distance / 0.0015)); 
+            spinVelocity = (distance / N) + (0.0015 * (N - 1) / 2);
+            
+            shuffleCount = 0; // Reset bộ đếm
+            animate();
+        });
+
+        function determineWinner() {
+            const arcSize = (2 * Math.PI) / names.length;
+            let normalizedAngle = currentAngle % (2 * Math.PI);
+            if (normalizedAngle < 0) normalizedAngle += 2 * Math.PI;
+            currentWinnerIndex = Math.floor(((2 * Math.PI) - normalizedAngle) / arcSize) % names.length;
+            document.getElementById("winnerText").innerText = names[currentWinnerIndex];
+            document.getElementById("winnerModal").style.display = "flex";
+        }
+
+        window.closeModal = function() { document.getElementById("winnerModal").style.display = "none"; }
+
+        window.removeWinner = function() {
+            if (currentWinnerIndex !== -1) {
+                let currentNames = getNames();
+                currentNames.splice(currentWinnerIndex, 1);
+                nameList.value = currentNames.join('\n');
+                drawWheel();
+                closeModal();
+            }
+        }
+
+        nameList.addEventListener("input", drawWheel);
+
+        document.getElementById("shuffleBtn").addEventListener("click", () => {
+            shuffleCount++; 
+            let arr = getNames();
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            nameList.value = arr.join('\n');
+            drawWheel();
+        });
+
+        document.getElementById("sortBtn").addEventListener("click", () => {
+            let arr = getNames();
+            arr.sort((a, b) => a.localeCompare(b, 'vi'));
+            nameList.value = arr.join('\n');
+            drawWheel();
+        });
+
+        drawWheel();
+    </script>
+</body>
+</html>
